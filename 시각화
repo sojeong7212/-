@@ -1,0 +1,68 @@
+import csv
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+
+def load_data(file_path):
+    # CSV 파일에서 데이터 로드
+    timestamps = []
+    obstacle_data = []
+
+    with open(file_path, newline='') as csvfile:
+        reader = csv.reader(csvfile)
+        header = next(reader)  # 헤더 건너뜀
+
+        for row in reader:
+            timestamps.append(float(row[0]))  # 첫 번째 열이 타임스탬프
+            data_per_angle = []
+            for i in range(4, len(row), 3):  # 각도별 거리, X, Y 좌표는 3개씩 그룹으로 묶임
+                distance = row[i]
+                x = row[i + 1]
+                y = row[i + 2]
+
+                if distance != 'N/A' and x != 'N/A' and y != 'N/A':
+                    data_per_angle.append([float(distance), float(x), float(y)])
+                else:
+                    data_per_angle.append([np.nan, np.nan, np.nan])
+
+            obstacle_data.append(data_per_angle)
+
+    return np.array(timestamps), np.array(obstacle_data)
+
+def update_plot(frame, timestamps, obstacle_data, scatter, bot_marker):
+    # 현재 타임스탬프에 해당하는 장애물 데이터 가져오기
+    current_data = obstacle_data[frame]
+    x = current_data[:, 1]  # X 좌표
+    y = current_data[:, 2]  # Y 좌표
+
+    # 유효한 데이터만 표시
+    scatter.set_offsets(np.c_[x, y])
+    plt.title(f"Timestep: {timestamps[frame]:.2f}")
+
+    # 터틀봇 위치를 0, 0에 고정
+    bot_marker.set_offsets([0, 0])
+
+def main():
+    file_path = 'cmd_vel_log_29.csv'  # CSV 파일 경로
+    timestamps, obstacle_data = load_data(file_path)
+
+    fig, ax = plt.subplots()
+    ax.set_xlim([-5, 5])
+    ax.set_ylim([-5, 5])
+    ax.set_xlabel("X-coordinate")
+    ax.set_ylabel("Y-coordinate")
+    scatter = ax.scatter([], [], s=10, color='blue', label="Obstacles")
+    bot_marker = ax.scatter(0, 0, s=50, color='red', label="TurtleBot")
+
+    ax.legend()
+
+    anim = FuncAnimation(fig, update_plot, frames=len(timestamps),
+                         fargs=(timestamps, obstacle_data, scatter, bot_marker),
+                         interval=200)
+
+    # 애니메이션을 gif로 저장
+    anim.save('obstacle_animation.gif', writer='pillow', fps=5)
+    plt.show()
+
+if __name__ == "__main__":
+    main()
